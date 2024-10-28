@@ -1,8 +1,13 @@
-#ifndef DRACO_H
-#define DRACO_H
+#pragma once
 
-namespace draco {
-  double multiply(double a, double b);
+#include <RNDracoSpecJSI.h>
+
+namespace facebook::react {
+class ReactNativeDraco: public NativeDracoCxxSpec<ReactNativeDraco> {
+public:
+  ReactNativeDraco(std::shared_ptr<CallInvoker> jsInvoker);
+  
+  double multiply(jsi::Runtime &rt, double a, double b);
+};
 }
 
-#endif /* DRACO_H */

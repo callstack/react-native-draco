@@ -1,9 +1,8 @@
 import { StyleSheet, View, Text } from 'react-native';
 import { multiply } from 'react-native-draco';
 
-const result = multiply(3, 7);
-
 export default function App() {
+  const result = multiply(5, 2);
   return (
     <View style={styles.container}>
       <Text>Result: {result}</Text>

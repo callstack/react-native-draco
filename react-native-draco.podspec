@@ -16,6 +16,10 @@ Pod::Spec.new do |s|
 
   s.source_files = "ios/**/*.{h,m,mm}", "cpp/**/*.{hpp,cpp,c,h}"
 
+  s.pod_target_xcconfig = {
+    'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)/libs/include',
+  }
+
   s.vendored_frameworks = "libs/libdraco.xcframework"
 
   # Use install_modules_dependencies helper to install the dependencies if React Native version >=0.71.0.
