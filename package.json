@@ -34,7 +34,8 @@
     "!**/__tests__",
     "!**/__fixtures__",
     "!**/__mocks__",
-    "!**/.*"
+    "!**/.*",
+    "!externals/**"
   ],
   "scripts": {
     "example": "yarn workspace react-native-draco-example",
@@ -43,7 +44,8 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
-    "release": "release-it"
+    "release": "release-it",
+    "build-draco": "ts-node scripts/build.ts"
   },
   "keywords": [
     "react-native",
@@ -81,8 +83,10 @@
     "react-native": "0.76.0",
     "react-native-builder-bob": "^0.30.3",
     "release-it": "^15.0.0",
+    "ts-node": "^10.9.2",
     "turbo": "^1.10.7",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "zx": "^8.1.9"
   },
   "resolutions": {
     "@types/react": "^18.2.44"
