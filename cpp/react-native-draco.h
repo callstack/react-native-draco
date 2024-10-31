@@ -22,7 +22,13 @@ public:
   
   jsi::Object createDecoderModule(jsi::Runtime &rt);
   jsi::Object createEncoderModule(jsi::Runtime &rt);
+  
+  void installMeshMethods(jsi::Runtime &rt, jsi::Object handle);
+  void installPointCloudMethods(jsi::Runtime &rt, jsi::Object handle);
+  void installPointAttributeMethods(jsi::Runtime &rt, jsi::Object handle);
   void attachPointCloudHandle(jsi::Runtime &rt, jsi::Object handle);
+  void attachPointAttributeHandle(jsi::Runtime &rt, jsi::Object handle);
+  void attachMeshHandle(jsi::Runtime &rt, jsi::Object handle);
   bool GetAttributeDataArrayForAllPoints(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, jsi::Object pointAttributeHandle, NativeDracoDataType dataType, int outSize, jsi::Object outValues);
   void SkipAttributeTransform(jsi::Runtime &rt, NativeDracoGeometryAttribute attributeType);
   jsi::Object GetAttributeByUniqueId(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, int uniqueId);

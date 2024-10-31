@@ -73,6 +73,12 @@ export interface Spec extends TurboModule {
   createEncoderModule(): OpaqueNativeDecoderHandle;
 
   attachPointCloudHandle(handle: OpaqueNativePointCloudHandle): void;
+  attachMeshHandle(handle: OpaqueNativeMeshHandle): void;
+  attachPointAttributeHandle(handle: OpaqueNativePointAttributeHandle): void;
+
+  installMeshMethods(handle: OpaqueNativeMeshHandle): void;
+  installPointCloudMethods(handle: OpaqueNativePointCloudHandle): void;
+  installPointAttributeMethods(handle: OpaqueNativePointAttributeHandle): void;
 
   // Buffer operations
   initBuffer(

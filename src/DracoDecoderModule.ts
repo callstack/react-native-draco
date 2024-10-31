@@ -4,11 +4,11 @@ import NativeDraco, {
 } from './NativeDraco';
 
 class DecoderBuffer {
-  bufferArray: Uint8Array | null = null;
+  arrayBuffer: Uint8Array | null = null;
 
   Init(array: Uint8Array, _: number) {
-    this.bufferArray = array;
-    NativeDraco.initBuffer(this, array.buffer, array.length);
+    this.arrayBuffer = array;
+    NativeDraco.initBuffer(this, this.arrayBuffer.buffer, array.length);
   }
 }
 
@@ -89,57 +89,14 @@ class Decoder {
 }
 
 class PointAttribute {
-  size(): number {
-    return 0;
-  }
-
-  // From GeometryAttribute
-  attribute_type(): number {
-    return 0;
-  }
-
-  data_type(): number {
-    return 0;
-  }
-
-  num_components(): number {
-    return 0;
-  }
-
-  normalized(): boolean {
-    return false;
-  }
-
-  byte_stride(): number {
-    return 0;
-  }
-
-  byte_offset(): number {
-    return 0;
-  }
-
-  unique_id(): number {
-    return 0;
+  constructor() {
+    NativeDraco.attachPointAttributeHandle(this);
   }
 }
 
 class Mesh {
-  // meshHandle: OpaqueNativeDracoHandle;
-
   constructor() {
-    // this.meshHandle = NativeDraco.createMesh();
-  }
-
-  num_points(): number {
-    return 0;
-  }
-
-  num_attributes(): number {
-    return 0;
-  }
-
-  num_faces(): number {
-    return 0;
+    NativeDraco.attachMeshHandle(this);
   }
 }
 
@@ -147,17 +104,36 @@ class PointCloud {
   constructor() {
     NativeDraco.attachPointCloudHandle(this);
   }
+}
 
-  num_points(): number {
-    return 0;
-  }
+// This is defined on prototypes in JSI
 
-  num_attributes(): number {
-    return 0;
-  }
+interface PointAttribute {
+  size: () => number;
+  attribute_type: () => number;
+  data_type: () => number;
+  num_components: () => number;
+  normalized: () => boolean;
+  byte_stride: () => number;
+  byte_offset: () => number;
+  unique_id: () => number;
+}
+
+interface Mesh {
+  num_faces: () => number;
+  num_points: () => number;
+}
+
+interface PointCloud {
+  num_points: () => number;
+  num_attributes: () => number;
 }
 
 export function DracoDecoderModule() {
+  NativeDraco.installMeshMethods(Mesh.prototype);
+  NativeDraco.installPointCloudMethods(PointCloud.prototype);
+  NativeDraco.installPointAttributeMethods(PointAttribute.prototype);
+
   return {
     // Constants
     TRIANGULAR_MESH: 1,
@@ -168,8 +144,8 @@ export function DracoDecoderModule() {
     Decoder,
     Mesh,
     PointCloud,
-    destroy: (module: DecoderBuffer | Decoder | Mesh | PointCloud) => {
-      console.log('destroying', module);
+    destroy: (_: DecoderBuffer | Decoder | Mesh | PointCloud) => {
+      // No-op, objects are automatically cleaned up when they go out of scope.
     },
   };
 }
