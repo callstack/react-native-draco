@@ -1,4 +1,5 @@
 import NativeDraco, {
+  GeometryAttribute,
   Status,
   type OpaqueNativeDecoderHandle,
 } from './NativeDraco';
@@ -54,26 +55,25 @@ class Decoder {
   }
 
   GetAttributeByUniqueId(
-    pointCloudHandle: PointCloud,
+    pointCloudHandle: PointCloud | Mesh,
     uniqueId: number
   ): PointAttribute {
     return NativeDraco.GetAttributeByUniqueId(
       this.decoderHandle,
       pointCloudHandle,
-      uniqueId
+      Number(uniqueId)
     ) as PointAttribute;
   }
 
-  GetAttributeId(pointCloudHandle: PointCloud, attributeType: number): number {
-    return NativeDraco.GetAttributeId(
-      this.decoderHandle,
-      pointCloudHandle,
-      attributeType
-    );
+  GetAttributeId(
+    pointCloudHandle: PointCloud | Mesh,
+    attributeType: GeometryAttribute
+  ): number {
+    return NativeDraco.GetAttributeId(pointCloudHandle, attributeType);
   }
 
   GetAttribute(
-    pointCloudHandle: PointCloud,
+    pointCloudHandle: PointCloud | Mesh,
     attributeId: number
   ): PointAttribute {
     return NativeDraco.GetAttribute(

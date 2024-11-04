@@ -11,38 +11,44 @@ namespace facebook::react {
 
 class DracoDecoder: public jsi::NativeState {
 public:
-  DracoDecoder(): decoder_(std::make_unique<draco::Decoder>()), last_status_(std::make_unique<draco::Status>()) {}
+  DracoDecoder(): decoder_(draco::Decoder()), last_status_(draco::Status()) {}
   
-  std::unique_ptr<draco::Decoder> decoder_;
-  std::unique_ptr<draco::Status> last_status_;
+  draco::Decoder decoder_;
+  draco::Status last_status_;
 };
 
 class DracoDecoderBuffer : public jsi::NativeState {
 public:
-  DracoDecoderBuffer() : buffer_(std::make_unique<draco::DecoderBuffer>()) {}
+  DracoDecoderBuffer() : buffer_(draco::DecoderBuffer()) {}
   
-  std::unique_ptr<draco::DecoderBuffer> buffer_;
+  draco::DecoderBuffer buffer_;
 };
 
 class DracoPointCloud: public jsi::NativeState {
 public:
-  DracoPointCloud(): pointCloud_(std::make_unique<draco::PointCloud>()) {}
+  DracoPointCloud(): pointCloud_(draco::PointCloud()) {}
   
-  std::unique_ptr<draco::PointCloud> pointCloud_;
+  draco::PointCloud pointCloud_;
 };
 
 class DracoPointAttribute: public jsi::NativeState {
 public:
-  DracoPointAttribute(): pointAttribute_(std::make_unique<draco::PointAttribute>()) {}
+  DracoPointAttribute(): pointAttribute_(draco::PointAttribute()) {}
   
-  std::unique_ptr<draco::PointAttribute> pointAttribute_;
+  explicit DracoPointAttribute(const draco::PointAttribute &attribute): pointAttribute_(draco::PointAttribute()) {
+    pointAttribute_.CopyFrom(attribute);
+  }
+  
+  explicit DracoPointAttribute(draco::PointAttribute &&attribute): pointAttribute_(std::move(attribute)) {}
+  
+  draco::PointAttribute pointAttribute_;
 };
 
 class DracoMesh: public jsi::NativeState {
 public:
-  DracoMesh(): mesh_(std::make_unique<draco::Mesh>()) {}
+  DracoMesh(): mesh_(draco::Mesh()) {}
   
-  std::unique_ptr<draco::Mesh> mesh_;
+  draco::Mesh mesh_;
 };
 
 std::shared_ptr<DracoDecoder> tryGetDecoder(jsi::Runtime& rt, jsi::Object& obj) {
@@ -111,24 +117,28 @@ void ReactNativeDraco::attachPointAttributeHandle(jsi::Runtime &rt, jsi::Object 
 }
 
 void ReactNativeDraco::installMeshMethods(jsi::Runtime &rt, jsi::Object handle) {
+  _installMeshMethods(rt, handle);
+}
+
+void ReactNativeDraco::_installMeshMethods(jsi::Runtime &rt, jsi::Object& handle) {
   auto num_faces = HOSTFN("num_faces", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetMesh(rt, thisHandle);
-    auto faces = mesh->mesh_->num_faces();
+    auto faces = mesh->mesh_.num_faces();
     return jsi::Value((int)faces);
   });
   
   auto num_attributes = HOSTFN("num_attributes", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetMesh(rt, thisHandle);
-    auto attributes = mesh->mesh_->num_attributes();
+    auto attributes = mesh->mesh_.num_attributes();
     return jsi::Value((int)attributes);
   });
   
   auto num_points = HOSTFN("num_points", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetMesh(rt, thisHandle);
-    auto points = mesh->mesh_->num_points();
+    auto points = mesh->mesh_.num_points();
     return jsi::Value((int)points);
   });
   
@@ -138,17 +148,21 @@ void ReactNativeDraco::installMeshMethods(jsi::Runtime &rt, jsi::Object handle) 
 }
 
 void ReactNativeDraco::installPointCloudMethods(jsi::Runtime &rt, jsi::Object handle) {
+  _installPointCloudMethods(rt, handle);
+}
+
+void ReactNativeDraco::_installPointCloudMethods(jsi::Runtime &rt, jsi::Object& handle) {
   auto num_points = HOSTFN("num_points", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointCloud(rt, thisHandle);
-    auto points = mesh->pointCloud_->num_points();
+    auto points = mesh->pointCloud_.num_points();
     return jsi::Value((int)points);
   });
   
   auto num_attributes = HOSTFN("num_attributes", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointCloud(rt, thisHandle);
-    auto attributes = mesh->pointCloud_->num_attributes();
+    auto attributes = mesh->pointCloud_.num_attributes();
     return jsi::Value((int)attributes);
   });
   
@@ -157,52 +171,63 @@ void ReactNativeDraco::installPointCloudMethods(jsi::Runtime &rt, jsi::Object ha
 }
 
 void ReactNativeDraco::installPointAttributeMethods(jsi::Runtime &rt, jsi::Object handle) {
+  _installPointAttributeMethods(rt, handle);
+}
+
+void ReactNativeDraco::_installPointAttributeMethods(jsi::Runtime &rt, jsi::Object& handle) {
   auto size = HOSTFN("size", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointAttribute(rt, thisHandle);
-    auto value = mesh->pointAttribute_->size();
+    auto value = mesh->pointAttribute_.size();
     return jsi::Value((int)value);
   });
   
   auto attribute_type = HOSTFN("attribute_type", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointAttribute(rt, thisHandle);
-    auto value = mesh->pointAttribute_->attribute_type();
+    auto value = mesh->pointAttribute_.attribute_type();
     return jsi::Value((int)value);
   });
   
   auto data_type = HOSTFN("data_type", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointAttribute(rt, thisHandle);
-    auto value = mesh->pointAttribute_->data_type();
+    auto value = mesh->pointAttribute_.data_type();
     return jsi::Value((int)value);
   });
   
   auto normalized = HOSTFN("normalized", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointAttribute(rt, thisHandle);
-    auto value = mesh->pointAttribute_->normalized();
+    auto value = mesh->pointAttribute_.normalized();
     return jsi::Value((bool)value);
   });
   
   auto byte_stride = HOSTFN("byte_stride", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointAttribute(rt, thisHandle);
-    auto value = mesh->pointAttribute_->byte_stride();
+    auto value = mesh->pointAttribute_.byte_stride();
     return jsi::Value((int)value);
   });
   
   auto byte_offset = HOSTFN("byte_offset", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointAttribute(rt, thisHandle);
-    auto value = mesh->pointAttribute_->byte_offset();
+    auto value = mesh->pointAttribute_.byte_offset();
     return jsi::Value((int)value);
   });
   
   auto unique_id = HOSTFN("unique_id", 0, []) {
     auto thisHandle = thisValue.getObject(rt);
     auto mesh = tryGetPointAttribute(rt, thisHandle);
-    auto value = mesh->pointAttribute_->unique_id();
+    auto value = mesh->pointAttribute_.unique_id();
+    return jsi::Value((int)value);
+  });
+  
+  auto num_components = HOSTFN("num_components", 0, []) {
+    auto thisHandle = thisValue.getObject(rt);
+    auto mesh = tryGetPointAttribute(rt, thisHandle);
+    auto value = mesh->pointAttribute_.num_components();
     return jsi::Value((int)value);
   });
   
@@ -213,13 +238,12 @@ void ReactNativeDraco::installPointAttributeMethods(jsi::Runtime &rt, jsi::Objec
   handle.setProperty(rt, "byte_stride", std::move(byte_stride));
   handle.setProperty(rt, "byte_offset", std::move(byte_offset));
   handle.setProperty(rt, "unique_id", std::move(unique_id));
+  handle.setProperty(rt, "num_components", std::move(num_components));
 }
 
-bool ReactNativeDraco::GetAttributeDataArrayForAllPoints(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, jsi::Object pointAttributeHandle, NativeDracoDataType dataType, int outSize, jsi::Object outValues) {
-  return false;
-}
-
-void ReactNativeDraco::SkipAttributeTransform(jsi::Runtime &rt, NativeDracoGeometryAttribute attributeType) {
+void ReactNativeDraco::SkipAttributeTransform(jsi::Runtime &rt, jsi::Object decoderHandle, NativeDracoGeometryAttribute attributeType) {
+  auto decoder = tryGetDecoder(rt, decoderHandle);
+  decoder->decoder_.SetSkipAttributeTransform(draco::GeometryAttribute::Type((int)attributeType));
 }
 
 void ReactNativeDraco::initBuffer(jsi::Runtime &rt, jsi::Object bufferHandle, jsi::Object data, int length) {
@@ -237,19 +261,83 @@ void ReactNativeDraco::initBuffer(jsi::Runtime &rt, jsi::Object bufferHandle, js
     throw jsi::JSError(rt, "Buffer data is null");
   }
   
-  dracoBuffer->buffer_->Init((const char*)bufferData, length);
+  dracoBuffer->buffer_.Init((const char*)bufferData, length);
   bufferHandle.setNativeState(rt, dracoBuffer);
 }
 
 jsi::Object ReactNativeDraco::GetAttributeByUniqueId(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, int uniqueId) {
-  return jsi::Object(rt);
+  auto pointCloud = tryGetPointCloud(rt, pointCloudHandle);
+  auto mesh = tryGetMesh(rt, pointCloudHandle);
+  
+  const draco::PointAttribute *pointAttr = nullptr;
+  // Mesh is a subclass of pointCloud.
+  if (pointCloud != nullptr) {
+    pointAttr = pointCloud->pointCloud_.GetAttributeByUniqueId(uniqueId);
+  } else if (mesh != nullptr) {
+    pointAttr = mesh->mesh_.GetAttributeByUniqueId(uniqueId);
+  }
+  
+  if (pointAttr == nullptr) {
+    throw jsi::JSError(rt, "Failed to get attribute by unique id");
+  }
+  
+  auto object = jsi::Object{rt};
+  object.setNativeState(rt, std::make_shared<DracoPointAttribute>(*pointAttr));
+  _installPointAttributeMethods(rt, object);
+  
+  
+  return object;
 }
 
 jsi::Object ReactNativeDraco::GetAttribute(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, int attributeId) {
-  return jsi::Object(rt);
+  
+  auto pointCloud = tryGetPointCloud(rt, pointCloudHandle);
+  auto mesh = tryGetMesh(rt, pointCloudHandle);
+  bool isPointCloud = false;
+  
+  const draco::PointAttribute *pointAttr = nullptr;
+  // Mesh is a subclass of pointCloud.
+  if (pointCloud != nullptr) {
+    pointAttr = pointCloud->pointCloud_.attribute(attributeId);
+    isPointCloud = true;
+  } else if (mesh != nullptr) {
+    pointAttr = mesh->mesh_.attribute(attributeId);
+  }
+  
+  if (pointAttr == nullptr) {
+    throw jsi::JSError(rt, "Failed to get attribute by unique id");
+  }
+  
+  auto object = jsi::Object{rt};
+  object.setNativeState(rt, std::make_shared<DracoPointAttribute>(*pointAttr));
+  _installPointAttributeMethods(rt, object);
+  
+  return object;
 }
 
+int ReactNativeDraco::GetAttributeId(jsi::Runtime &rt, jsi::Object pointCloudHandle, NativeDracoGeometryAttribute attributeType) {
+  auto pointCloud = tryGetPointCloud(rt, pointCloudHandle);
+  auto mesh = tryGetMesh(rt, pointCloudHandle);
+  auto geometryAttr = draco::GeometryAttribute::Type((int)attributeType);
+  
+  // Mesh is a subclass of pointCloud.
+  if (pointCloud != nullptr) {
+    return pointCloud->pointCloud_.GetNamedAttributeId(geometryAttr);
+  } else if (mesh != nullptr) {
+    return mesh->mesh_.GetNamedAttributeId(geometryAttr);
+  }
+  
+  throw jsi::JSError(rt, "Provided point cloud is null");
+}
+
+// TODO: Implement this
 bool ReactNativeDraco::GetTrianglesUInt32Array(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object meshHandle, int outSize, jsi::Object outValues) {
+  auto mesh = tryGetMesh(rt, meshHandle);
+  return false;
+}
+
+// TODO: Implement this
+bool ReactNativeDraco::GetAttributeDataArrayForAllPoints(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, jsi::Object pointAttributeHandle, NativeDracoDataType dataType, int outSize, jsi::Object outValues) {
   return false;
 }
 
@@ -258,8 +346,8 @@ NativeDracoStatus ReactNativeDraco::DecodeBufferToPointCloud(jsi::Runtime &rt, j
   auto buffer = tryGetDecoderBuffer(rt, bufferHandle);
   auto pointCloud = tryGetPointCloud(rt, pointCloudHandle);
   
-  auto status = decoder->decoder_->DecodeBufferToGeometry(buffer->buffer_.get(), pointCloud->pointCloud_.get());
-  decoder->last_status_ = std::make_unique<draco::Status>(std::move(status));
+  auto status = decoder->decoder_.DecodeBufferToGeometry(&buffer->buffer_, &pointCloud->pointCloud_);
+  decoder->last_status_ = draco::Status(std::move(status));
   
   return Bridging<NativeDracoStatus>::fromJs(rt, jsi::Value(status.code()));
 }
@@ -269,15 +357,12 @@ NativeDracoStatus ReactNativeDraco::DecodeBufferToMesh(jsi::Runtime &rt, jsi::Ob
   auto buffer = tryGetDecoderBuffer(rt, bufferHandle);
   auto mesh = tryGetMesh(rt, meshHandle);
   
-  auto status = decoder->decoder_->DecodeBufferToGeometry(buffer->buffer_.get(), mesh->mesh_.get());
-  decoder->last_status_ = std::make_unique<draco::Status>(std::move(status));
+  auto status = decoder->decoder_.DecodeBufferToGeometry(&buffer->buffer_, &mesh->mesh_);
+  decoder->last_status_ = draco::Status(std::move(status));
   
   return Bridging<NativeDracoStatus>::fromJs(rt, jsi::Value(status.code()));
 }
 
-int ReactNativeDraco::GetAttributeId(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, NativeDracoGeometryAttribute attributeType) {
-  return 0;
-}
 
 NativeDracoEncodedGeometryType ReactNativeDraco::GetEncodedGeometryType_Deprecated(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object inBuffer) {
   auto decoderBuffer = tryGetDecoderBuffer(rt, inBuffer);
@@ -286,17 +371,9 @@ NativeDracoEncodedGeometryType ReactNativeDraco::GetEncodedGeometryType_Deprecat
     return NativeDracoEncodedGeometryType::INVALID_GEOMETRY_TYPE;
   }
   
-  auto value = draco::Decoder::GetEncodedGeometryType(decoderBuffer->buffer_.get()).value();
+  auto value = draco::Decoder::GetEncodedGeometryType(&decoderBuffer->buffer_).value();
   
-  if (value == draco::INVALID_GEOMETRY_TYPE) {
-    return NativeDracoEncodedGeometryType::INVALID_GEOMETRY_TYPE;
-  } else if (value == draco::POINT_CLOUD) {
-    return NativeDracoEncodedGeometryType::POINT_CLOUD;
-  } else if (value == draco::TRIANGULAR_MESH) {
-    return NativeDracoEncodedGeometryType::TRIANGULAR_MESH;
-  }
-  
-  return NativeDracoEncodedGeometryType::INVALID_GEOMETRY_TYPE;
+  return Bridging<NativeDracoEncodedGeometryType>::fromJs(rt, jsi::Value(value));
 }
 
 } // namespace facebook::react

@@ -2,9 +2,24 @@ import { StyleSheet, View, Text, Button } from 'react-native';
 import {
   DracoDecoderModule,
   EncodedGeometryType,
+  GeometryAttribute,
   Status,
 } from 'react-native-draco';
 import RNFetchBlob from 'react-native-blob-util';
+
+const defaultAttributeIDs = {
+  position: 'POSITION',
+  normal: 'NORMAL',
+  color: 'COLOR',
+  uv: 'TEX_COORD',
+};
+
+const defaultAttributeTypes = {
+  position: 'Float32Array',
+  normal: 'Float32Array',
+  color: 'Float32Array',
+  uv: 'Float32Array',
+};
 
 const readFile = async (path: string): Promise<Uint8Array> => {
   const filePath = RNFetchBlob.fs.asset(path);
@@ -31,6 +46,7 @@ export default function App() {
     const geometryType = decoder.GetEncodedGeometryType(buffer);
     console.log({ geometryType: EncodedGeometryType[geometryType] });
 
+    const t0 = performance.now();
     // Decode the encoded geometry.
     let outputGeometry;
     let status;
@@ -42,6 +58,11 @@ export default function App() {
       status = decoder.DecodeBufferToPointCloud(buffer, outputGeometry);
     }
 
+    const t1 = performance.now();
+    console.log('Draco Decoder finished decoding!');
+
+    console.log(`Decoding took ${(t1 - t0) / 1000} seconds.`);
+
     console.log({ status: Status[status], outputGeometry });
 
     if ('num_faces' in outputGeometry) {
@@ -52,6 +73,48 @@ export default function App() {
 
     console.log({ num_points });
 
+    const useUniqueIDs = true;
+
+    // const geometry = { index: null, attributes: [] };
+
+    for (const attributeName in defaultAttributeIDs) {
+      // @ts-ignore
+      const attributeType = defaultAttributeTypes[attributeName];
+
+      console.log({ attributeName, attributeType });
+
+      let attribute;
+      let attributeID;
+
+      if (useUniqueIDs) {
+        // @ts-ignore
+        attributeID = defaultAttributeIDs[attributeName];
+        attribute = decoder.GetAttributeByUniqueId(outputGeometry, attributeID);
+      } else {
+        attributeID = decoder.GetAttributeId(
+          outputGeometry,
+          // @ts-ignore
+          GeometryAttribute[defaultAttributeIDs[attributeName]]
+        );
+        console.log('GetAttributeId', GeometryAttribute[attributeID]);
+
+        if (attributeID === -1) continue;
+
+        attribute = decoder.GetAttribute(outputGeometry, attributeID);
+      }
+
+      console.log('Received attribute', {
+        attribute_unique_id: attribute.unique_id(),
+        attribute_size: attribute.size(),
+        attribute_type: attribute.attribute_type(),
+        attribute_data_type: attribute.data_type(),
+        attribute_num_components: attribute.num_components(),
+        attribute_normalized: attribute.normalized(),
+        attribute_byte_stride: attribute.byte_stride(),
+        attribute_byte_offset: attribute.byte_offset(),
+      });
+    }
+
     // You must explicitly delete objects created from the DracoDecoderModule
     // or Decoder.
     decoderModule.destroy(outputGeometry);
@@ -61,7 +124,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text>Draco Example</Text>
+      <Text style={{ fontSize: 40 }}>Draco Example</Text>
       <Button title="Decode" onPress={decode} />
     </View>
   );

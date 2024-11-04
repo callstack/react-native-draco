@@ -24,20 +24,28 @@ public:
   jsi::Object createEncoderModule(jsi::Runtime &rt);
   
   void installMeshMethods(jsi::Runtime &rt, jsi::Object handle);
+ 
   void installPointCloudMethods(jsi::Runtime &rt, jsi::Object handle);
+  
   void installPointAttributeMethods(jsi::Runtime &rt, jsi::Object handle);
+  
   void attachPointCloudHandle(jsi::Runtime &rt, jsi::Object handle);
   void attachPointAttributeHandle(jsi::Runtime &rt, jsi::Object handle);
   void attachMeshHandle(jsi::Runtime &rt, jsi::Object handle);
   bool GetAttributeDataArrayForAllPoints(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, jsi::Object pointAttributeHandle, NativeDracoDataType dataType, int outSize, jsi::Object outValues);
-  void SkipAttributeTransform(jsi::Runtime &rt, NativeDracoGeometryAttribute attributeType);
+  void SkipAttributeTransform(jsi::Runtime &rt, jsi::Object decoderHandle, NativeDracoGeometryAttribute attributeType);
   jsi::Object GetAttributeByUniqueId(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, int uniqueId);
   jsi::Object GetAttribute(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, int attributeId);
   bool GetTrianglesUInt32Array(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object meshHandle, int outSize, jsi::Object outValues);
   NativeDracoStatus DecodeBufferToPointCloud(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object bufferHandle, jsi::Object pointCloudHandle);
   NativeDracoStatus DecodeBufferToMesh(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object bufferHandle, jsi::Object meshHandle);
-  int GetAttributeId(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, NativeDracoGeometryAttribute attributeType);
+  int GetAttributeId(jsi::Runtime &rt, jsi::Object pointCloudHandle, NativeDracoGeometryAttribute attributeType);
   void initBuffer(jsi::Runtime &rt, jsi::Object bufferHandle, jsi::Object data, int length);
+  
+private:
+  void _installMeshMethods(jsi::Runtime &rt, jsi::Object& handle);
+  void _installPointCloudMethods(jsi::Runtime &rt, jsi::Object& handle);
+  void _installPointAttributeMethods(jsi::Runtime &rt, jsi::Object& handle);
 };
 }
 

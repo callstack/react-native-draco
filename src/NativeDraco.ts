@@ -102,7 +102,10 @@ export interface Spec extends TurboModule {
     outValues: UnsafeObject
   ): boolean;
 
-  SkipAttributeTransform(attributeType: GeometryAttribute): void;
+  SkipAttributeTransform(
+    decoderHandle: OpaqueNativeDecoderHandle,
+    attributeType: GeometryAttribute
+  ): void;
 
   GetAttributeByUniqueId(
     decoderHandle: OpaqueNativeDecoderHandle,
@@ -111,7 +114,6 @@ export interface Spec extends TurboModule {
   ): OpaqueNativePointAttributeHandle;
 
   GetAttributeId(
-    decoderHandle: OpaqueNativeDecoderHandle,
     pointCloudHandle: OpaqueNativePointCloudHandle,
     attributeType: GeometryAttribute
   ): Int32;
