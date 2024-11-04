@@ -113,6 +113,43 @@ export default function App() {
         attribute_byte_stride: attribute.byte_stride(),
         attribute_byte_offset: attribute.byte_offset(),
       });
+
+      const numComponents = attribute.num_components();
+      const numValues = num_points * numComponents;
+      const byteLength = numValues * 4;
+      const dataType = attribute.data_type();
+
+      const outputArray = new Float32Array(numValues);
+      console.log('GetAttributeDataArrayForAllPoints before:');
+      console.log(outputArray.slice(0, 100));
+
+      // NOTE: This API is different from Draco.js api as it relied on wasm memory. Has to be adjusted in IR-Engine.
+      decoder.GetAttributeDataArrayForAllPoints(
+        outputGeometry,
+        attribute,
+        dataType,
+        byteLength,
+        outputArray
+      );
+      console.log('GetAttributeDataArrayForAllPoints after:');
+      console.log(outputArray.slice(0, 100));
+    }
+
+    if (
+      'num_faces' in outputGeometry &&
+      geometryType === decoderModule.TRIANGULAR_MESH
+    ) {
+      // Generate mesh faces.
+      var numFaces = outputGeometry.num_faces();
+      var numIndices = numFaces * 3;
+      var dataSize = numIndices * 4;
+      console.log('GetTrianglesUInt32Array before:');
+      // NOTE: This API is different from Draco.js api as it relied on wasm memory. Has to be adjusted in IR-Engine.
+      const outputArray = new Uint32Array(dataSize);
+      console.log(outputArray.slice(0, 100));
+      decoder.GetTrianglesUInt32Array(outputGeometry, dataSize, outputArray);
+      console.log('GetTrianglesUInt32Array after:');
+      console.log(outputArray.slice(0, 100));
     }
 
     // You must explicitly delete objects created from the DracoDecoderModule

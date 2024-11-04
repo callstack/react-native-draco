@@ -91,6 +91,78 @@ std::shared_ptr<DracoMesh> tryGetMesh(jsi::Runtime& rt, jsi::Object& obj) {
   return std::dynamic_pointer_cast<DracoMesh>(obj.getNativeState(rt));
 }
 
+template <typename T>
+bool GetTrianglesArray(const draco::Mesh &m, const int out_size,
+                       T *out_values) {
+  const uint32_t num_faces = m.num_faces();
+  if (num_faces * 3 * sizeof(T) != out_size) {
+    return false;
+  }
+  
+  for (uint32_t face_id = 0; face_id < num_faces; ++face_id) {
+    const draco::Mesh::Face &face = m.face(draco::FaceIndex(face_id));
+    out_values[face_id * 3 + 0] = static_cast<T>(face[0].value());
+    out_values[face_id * 3 + 1] = static_cast<T>(face[1].value());
+    out_values[face_id * 3 + 2] = static_cast<T>(face[2].value());
+  }
+  return true;
+}
+
+template <class T>
+static bool GetAttributeDataArrayForAllPointsHelper(const draco::PointCloud &pc,
+                                                    const draco::PointAttribute &pa,
+                                                    const draco::DataType type,
+                                                    int out_size,
+                                                    void *out_values) {
+  const int components = pa.num_components();
+  const int num_points = pc.num_points();
+  const int data_size = num_points * components * sizeof(T);
+  if (data_size != out_size) {
+    return false;
+  }
+  const bool requested_type_matches = pa.data_type() == type;
+  if (requested_type_matches && pa.is_mapping_identity()) {
+    // Copy values directly to the output vector.
+    const auto ptr = pa.GetAddress(draco::AttributeValueIndex(0));
+    ::memcpy(out_values, ptr, data_size);
+    return true;
+  }
+  
+  return false;
+};
+
+bool GetAttributeFloatArrayForAllPoints(const draco::PointCloud &pc,
+                                        const draco::PointAttribute &pa,
+                                        int out_size,
+                                        void *out_values) {
+  const int components = pa.num_components();
+  const int num_points = pc.num_points();
+  const int data_size = num_points * components * sizeof(float);
+  if (data_size != out_size) {
+    return false;
+  }
+  const bool requested_type_is_float = pa.data_type() == draco::DT_FLOAT32;
+  std::vector<float> values(components, -2.f);
+  int entry_id = 0;
+  float *const floats = reinterpret_cast<float *>(out_values);
+  
+  for (draco::PointIndex i(0); i < num_points; ++i) {
+    const draco::AttributeValueIndex val_index = pa.mapped_index(i);
+    if (requested_type_is_float) {
+      pa.GetValue(val_index, &values[0]);
+    } else {
+      if (!pa.ConvertValue<float>(val_index, &values[0])) {
+        return false;
+      }
+    }
+    for (int j = 0; j < components; ++j) {
+      floats[entry_id++] = values[j];
+    }
+  }
+  return true;
+}
+
+
 ReactNativeDraco::ReactNativeDraco(std::shared_ptr<CallInvoker> jsInvoker)
 : NativeDracoCxxSpec(std::move(jsInvoker)) {}
 
@@ -270,11 +342,12 @@ jsi::Object ReactNativeDraco::GetAttributeByUniqueId(jsi::Runtime &rt, jsi::Obje
   auto mesh = tryGetMesh(rt, pointCloudHandle);
   
   const draco::PointAttribute *pointAttr = nullptr;
-  // Mesh is a subclass of pointCloud.
-  if (pointCloud != nullptr) {
-    pointAttr = pointCloud->pointCloud_.GetAttributeByUniqueId(uniqueId);
-  } else if (mesh != nullptr) {
-    pointAttr = mesh->mesh_.GetAttributeByUniqueId(uniqueId);
+  
+  try {
+    auto &pc = (pointCloud != nullptr) ? pointCloud->pointCloud_ : mesh->mesh_;
+    pointAttr = pc.GetAttributeByUniqueId(uniqueId);
+  } catch (std::exception& e) {
+    throw jsi::JSError(rt, "Operation failed");
   }
   
   if (pointAttr == nullptr) {
@@ -285,7 +358,6 @@ jsi::Object ReactNativeDraco::GetAttributeByUniqueId(jsi::Runtime &rt, jsi::Obje
   object.setNativeState(rt, std::make_shared<DracoPointAttribute>(*pointAttr));
   _installPointAttributeMethods(rt, object);
   
-  
   return object;
 }
 
@@ -293,15 +365,14 @@ jsi::Object ReactNativeDraco::GetAttribute(jsi::Runtime &rt, jsi::Object decoder
   
   auto pointCloud = tryGetPointCloud(rt, pointCloudHandle);
   auto mesh = tryGetMesh(rt, pointCloudHandle);
-  bool isPointCloud = false;
   
   const draco::PointAttribute *pointAttr = nullptr;
-  // Mesh is a subclass of pointCloud.
-  if (pointCloud != nullptr) {
-    pointAttr = pointCloud->pointCloud_.attribute(attributeId);
-    isPointCloud = true;
-  } else if (mesh != nullptr) {
-    pointAttr = mesh->mesh_.attribute(attributeId);
+  
+  try {
+    auto &pc = (pointCloud != nullptr) ? pointCloud->pointCloud_ : mesh->mesh_;
+    pointAttr = pc.attribute(attributeId);
+  } catch (std::exception& e) {
+    throw jsi::JSError(rt, "Operation failed");
   }
   
   if (pointAttr == nullptr) {
@@ -320,24 +391,69 @@ int ReactNativeDraco::GetAttributeId(jsi::Runtime &rt, jsi::Object pointCloudHan
   auto mesh = tryGetMesh(rt, pointCloudHandle);
   auto geometryAttr = draco::GeometryAttribute::Type((int)attributeType);
   
-  // Mesh is a subclass of pointCloud.
-  if (pointCloud != nullptr) {
-    return pointCloud->pointCloud_.GetNamedAttributeId(geometryAttr);
-  } else if (mesh != nullptr) {
-    return mesh->mesh_.GetNamedAttributeId(geometryAttr);
-  }
+  auto &object = (pointCloud != nullptr) ? pointCloud->pointCloud_ : mesh->mesh_;
   
-  throw jsi::JSError(rt, "Provided point cloud is null");
+  return object.GetNamedAttributeId(geometryAttr);
 }
 
-// TODO: Implement this
 bool ReactNativeDraco::GetTrianglesUInt32Array(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object meshHandle, int outSize, jsi::Object outValues) {
   auto mesh = tryGetMesh(rt, meshHandle);
+  
+  if (!outValues.isArrayBuffer(rt)) {
+    throw jsi::JSError(rt, "Data needs to be an array buffer");
+  }
+  
+  auto arrayBuffer = outValues.getArrayBuffer(rt);
+  auto bufferData = arrayBuffer.data(rt);
+  
+  return GetTrianglesArray<uint32_t>(mesh->mesh_, outSize,
+                                     reinterpret_cast<uint32_t *>(bufferData));
   return false;
 }
 
-// TODO: Implement this
 bool ReactNativeDraco::GetAttributeDataArrayForAllPoints(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object pointCloudHandle, jsi::Object pointAttributeHandle, NativeDracoDataType dataType, int outSize, jsi::Object outValues) {
+  auto pc = tryGetPointCloud(rt, pointCloudHandle);
+  auto mesh = tryGetMesh(rt, pointCloudHandle);
+  auto pa = tryGetPointAttribute(rt, pointAttributeHandle);
+  
+  if (!outValues.isArrayBuffer(rt)) {
+    throw jsi::JSError(rt, "Data needs to be an array buffer");
+  }
+  
+  auto arrayBuffer = outValues.getArrayBuffer(rt);
+  auto bufferData = arrayBuffer.data(rt);
+  
+  // TODO: Properly handle inheritance of PointCloud and Mesh, currently due to NativeState wrappers its broken.
+  try {
+    auto &object = (pc != nullptr) ? pc->pointCloud_ : mesh->mesh_;
+    switch (dataType) {
+      case NativeDracoDataType::DT_INT8:
+        return GetAttributeDataArrayForAllPointsHelper<int8_t>(object, pa->pointAttribute_, draco::DT_INT8,
+                                                               outSize, bufferData);
+      case NativeDracoDataType::DT_INT16:
+        return GetAttributeDataArrayForAllPointsHelper<int16_t>(object, pa->pointAttribute_, draco::DT_INT8,
+                                                                outSize, bufferData);
+      case NativeDracoDataType::DT_INT32:
+        return GetAttributeDataArrayForAllPointsHelper<int32_t>(object, pa->pointAttribute_, draco::DT_INT8,
+                                                                outSize, bufferData);
+      case NativeDracoDataType::DT_UINT8:
+        return GetAttributeDataArrayForAllPointsHelper<uint8_t>(object, pa->pointAttribute_, draco::DT_INT8,
+                                                                outSize, bufferData);
+      case NativeDracoDataType::DT_UINT16:
+        return GetAttributeDataArrayForAllPointsHelper<uint16_t>(object, pa->pointAttribute_, draco::DT_INT8,
+                                                                 outSize, bufferData);
+      case NativeDracoDataType::DT_UINT32:
+        return GetAttributeDataArrayForAllPointsHelper<uint32_t>(object, pa->pointAttribute_, draco::DT_INT8,
+                                                                 outSize, bufferData);
+      case NativeDracoDataType::DT_FLOAT32:
+        return GetAttributeFloatArrayForAllPoints(object, pa->pointAttribute_, outSize, bufferData);
+      default:
+        return false;
+    }
+  } catch (std::exception e) {
+    throw jsi::JSError(rt, "Operation failed");
+  }
+  
   return false;
 }
 

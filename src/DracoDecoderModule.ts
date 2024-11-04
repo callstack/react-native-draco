@@ -37,12 +37,25 @@ class Decoder {
     );
   }
 
+  GetTrianglesUInt32Array(
+    mesh: Mesh | PointCloud,
+    outSize: number,
+    outValues: Uint32Array
+  ): boolean {
+    return NativeDraco.GetTrianglesUInt32Array(
+      this.decoderHandle,
+      mesh,
+      outSize,
+      outValues.buffer
+    );
+  }
+
   GetAttributeDataArrayForAllPoints(
-    pointCloudHandle: PointCloud,
+    pointCloudHandle: PointCloud | Mesh,
     pointAttributeHandle: PointAttribute,
     dataType: number,
     outSize: number,
-    outValues: Object
+    outValues: { buffer: Object }
   ) {
     return NativeDraco.GetAttributeDataArrayForAllPoints(
       this.decoderHandle,
@@ -50,7 +63,7 @@ class Decoder {
       pointAttributeHandle,
       dataType,
       outSize,
-      outValues
+      outValues.buffer
     );
   }
 
