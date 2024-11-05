@@ -51,14 +51,14 @@ static bool GetAttributeDataArrayForAllPointsHelper(const draco::PointCloud &pc,
                                                     void *out_values) {
   const int components = pa.num_components();
   const int num_points = pc.num_points();
-  const int data_size = num_points * components * sizeof(T);
+  const size_t data_size = num_points * components * sizeof(T);
   if (data_size != out_size) {
     return false;
   }
   const bool requested_type_matches = pa.data_type() == type;
   if (requested_type_matches && pa.is_mapping_identity()) {
     // Copy values directly to the output vector.
-    const auto ptr = pa.GetAddress(draco::AttributeValueIndex(0));
+    const uint8_t *ptr = pa.GetAddress(draco::AttributeValueIndex(0));
     ::memcpy(out_values, ptr, data_size);
     return true;
   }
