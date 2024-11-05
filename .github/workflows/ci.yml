@@ -114,6 +114,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
       - name: Setup
         uses: ./.github/actions/setup
@@ -125,6 +127,18 @@ jobs:
           key: ${{ runner.os }}-turborepo-ios-${{ hashFiles('yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-turborepo-ios-
+
+      - name: Build draco
+        run: |
+          yarn run build-draco
+
+      - name: Cache draco
+        uses: actions/cache@v3
+        with:
+          path: libs/**
+          key: ${{ runner.os }}-draco-build-${{ hashFiles('example/ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-draco-
 
       - name: Check turborepo cache for iOS
         run: |
