@@ -12,23 +12,18 @@
 
 namespace facebook::react {
 
-
-
 class ReactNativeDraco: public NativeDracoCxxSpec<ReactNativeDraco> {
 public:
   ReactNativeDraco(std::shared_ptr<CallInvoker> jsInvoker);
- 
+
   NativeDracoEncodedGeometryType GetEncodedGeometryType_Deprecated(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object inBuffer);
-  
+
   jsi::Object createDecoderModule(jsi::Runtime &rt);
   jsi::Object createEncoderModule(jsi::Runtime &rt);
-  
+
   void installMeshMethods(jsi::Runtime &rt, jsi::Object handle);
- 
   void installPointCloudMethods(jsi::Runtime &rt, jsi::Object handle);
-  
   void installPointAttributeMethods(jsi::Runtime &rt, jsi::Object handle);
-  
   void attachPointCloudHandle(jsi::Runtime &rt, jsi::Object handle);
   void attachPointAttributeHandle(jsi::Runtime &rt, jsi::Object handle);
   void attachMeshHandle(jsi::Runtime &rt, jsi::Object handle);
@@ -41,7 +36,7 @@ public:
   NativeDracoStatus DecodeBufferToMesh(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object bufferHandle, jsi::Object meshHandle);
   int GetAttributeId(jsi::Runtime &rt, jsi::Object pointCloudHandle, NativeDracoGeometryAttribute attributeType);
   void initBuffer(jsi::Runtime &rt, jsi::Object bufferHandle, jsi::Object data, int length);
-  
+
 private:
   void _installMeshMethods(jsi::Runtime &rt, jsi::Object& handle);
   void _installPointCloudMethods(jsi::Runtime &rt, jsi::Object& handle);
