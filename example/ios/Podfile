@@ -14,4 +14,8 @@ options = {
   :hermes_enabled => true,
 }
 
-use_test_app! options
+use_test_app! options do |target|
+  target.app do
+    pod 'Resources', :path => './Resources'
+  end
+end

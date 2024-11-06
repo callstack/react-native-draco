@@ -1,5 +1,15 @@
-const Draco = require('./NativeDraco').default;
+import { DracoDecoderModule } from './DracoDecoderModule';
+import {
+  Status,
+  EncodedGeometryType,
+  GeometryAttribute,
+  DataType,
+} from './NativeDraco';
 
-export function multiply(a: number, b: number): number {
-  return Draco.multiply(a, b);
-}
+export {
+  EncodedGeometryType,
+  Status,
+  GeometryAttribute,
+  DataType,
+  DracoDecoderModule,
+};
