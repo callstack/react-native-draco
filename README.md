@@ -1,22 +1,21 @@
 # react-native-draco
 
-library for compressing and decompressing 3D geometric meshes and point clouds in React Native
+React Native bindings for [Draco](https://github.com/google/draco) - a library for compressing and decompressing 3D geometric meshes and point clouds.
 
 ## Installation
 
 ```sh
-npm install react-native-draco
+yarn add @callstack/react-native-draco
 ```
 
 ## Usage
 
+For documentation on how to use the Draco library, please refer to the [official documentation](https://google.github.io/draco/).
 
 ```js
-import { multiply } from 'react-native-draco';
-
-// ...
-
-const result = multiply(3, 7);
+const decoderModule = DracoDecoderModule();
+const buffer = new decoderModule.DecoderBuffer();
+buffer.Init(byteArray, byteArray.length);
 ```
 
 

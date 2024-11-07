@@ -1,5 +1,5 @@
 {
-  "name": "react-native-draco",
+  "name": "@callstack/react-native-draco",
   "version": "0.1.0",
   "description": "library for compressing and decompressing 3D geometric meshes and point clouds in React Native",
   "source": "./src/index.tsx",
@@ -24,6 +24,7 @@
     "android",
     "ios",
     "cpp",
+    "libs",
     "*.podspec",
     "react-native.config.json",
     "!ios/build",
