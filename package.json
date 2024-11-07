@@ -15,7 +15,8 @@
         "types": "./lib/typescript/commonjs/src/index.d.ts",
         "default": "./lib/commonjs/index.js"
       }
-    }
+    },
+    "package.json": "./package.json"
   },
   "files": [
     "src",
@@ -186,14 +187,11 @@
   },
   "codegenConfig": {
     "name": "RNDracoSpec",
-    "type": "all",
+    "type": "modules",
     "jsSrcsDir": "src",
+    "includesGeneratedCode": true,
     "outputDir": {
-      "ios": "ios/generated",
-      "android": "android/generated"
-    },
-    "android": {
-      "javaPackageName": "com.draco"
+      "ios": "ios/generated"
     }
   },
   "create-react-native-library": {
