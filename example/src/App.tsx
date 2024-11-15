@@ -4,7 +4,7 @@ import {
   EncodedGeometryType,
   GeometryAttribute,
   Status,
-} from 'react-native-draco';
+} from '@callstack/react-native-draco';
 import RNFetchBlob from 'react-native-blob-util';
 
 const defaultAttributeIDs = {

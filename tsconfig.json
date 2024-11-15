@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "react-native-draco": ["./src/index"]
+      "@callstack/react-native-draco": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
