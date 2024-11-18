@@ -2,6 +2,8 @@
 #include "draco/core/decoder_buffer.h"
 #include "draco-state.h"
 #include "draco-helpers.h"
+#include <thread>
+#include <future>
 
 namespace facebook::react {
 
@@ -303,10 +305,28 @@ NativeDracoStatus ReactNativeDraco::DecodeBufferToPointCloud(jsi::Runtime &rt, j
   auto buffer = tryGetDracoObject<DracoDecoderBuffer>(rt, bufferHandle);
   auto pointCloud = tryGetDracoObject<DracoPointCloud>(rt, pointCloudHandle);
   
-  auto status = decoder->decoder_.DecodeBufferToGeometry(&buffer->buffer_, &pointCloud->pointCloud_);
-  decoder->last_status_ = draco::Status(std::move(status));
+  std::promise<draco::Status> resultPromise;
+  std::future<draco::Status> resultFuture = resultPromise.get_future();
   
-  return Bridging<NativeDracoStatus>::fromJs(rt, jsi::Value(status.code()));
+  std::thread decodingThread([&buffer, &pointCloud, &decoder, promise = std::move(resultPromise)]() mutable {
+    try {
+      auto status = decoder->decoder_.DecodeBufferToGeometry(&buffer->buffer_, &pointCloud->pointCloud_);
+      decoder->last_status_ = draco::Status(std::move(status));
+      promise.set_value(status);
+    } catch (...) {
+      promise.set_exception(std::current_exception());
+    }
+    
+  });
+  
+  decodingThread.detach();
+  
+  try {
+    auto status = resultFuture.get();
+    return Bridging<NativeDracoStatus>::fromJs(rt, jsi::Value(status.code()));
+  } catch (const std::exception& e) {
+    throw jsi::JSError(rt, e.what());
+  }
 }
 
 NativeDracoStatus ReactNativeDraco::DecodeBufferToMesh(jsi::Runtime &rt, jsi::Object decoderHandle, jsi::Object bufferHandle, jsi::Object meshHandle) {
@@ -314,10 +334,28 @@ NativeDracoStatus ReactNativeDraco::DecodeBufferToMesh(jsi::Runtime &rt, jsi::Ob
   auto buffer = tryGetDracoObject<DracoDecoderBuffer>(rt, bufferHandle);
   auto mesh = tryGetDracoObject<DracoMesh>(rt, meshHandle);
   
-  auto status = decoder->decoder_.DecodeBufferToGeometry(&buffer->buffer_, &mesh->mesh_);
-  decoder->last_status_ = draco::Status(std::move(status));
+  std::promise<draco::Status> resultPromise;
+  std::future<draco::Status> resultFuture = resultPromise.get_future();
   
-  return Bridging<NativeDracoStatus>::fromJs(rt, jsi::Value(status.code()));
+  std::thread decodingThread([&buffer, &mesh, &decoder, promise = std::move(resultPromise)]() mutable {
+    try {
+      auto status = decoder->decoder_.DecodeBufferToGeometry(&buffer->buffer_, &mesh->mesh_);
+      decoder->last_status_ = draco::Status(std::move(status));
+      promise.set_value(status);
+    } catch (...) {
+      promise.set_exception(std::current_exception());
+    }
+    
+  });
+  
+  decodingThread.detach();
+  
+  try {
+    auto status = resultFuture.get();
+    return Bridging<NativeDracoStatus>::fromJs(rt, jsi::Value(status.code()));
+  } catch (const std::exception& e) {
+    throw jsi::JSError(rt, e.what());
+  }
 }
 
 

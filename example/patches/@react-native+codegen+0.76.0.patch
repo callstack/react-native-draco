@@ -1,0 +1,91 @@
+diff --git a/node_modules/@react-native/codegen/lib/generators/modules/GenerateModuleH.js b/node_modules/@react-native/codegen/lib/generators/modules/GenerateModuleH.js
+index 13232a1..fe52764 100644
+--- a/node_modules/@react-native/codegen/lib/generators/modules/GenerateModuleH.js
++++ b/node_modules/@react-native/codegen/lib/generators/modules/GenerateModuleH.js
+@@ -424,7 +424,9 @@ function generateEnum(hasteModuleName, origEnumName, members, memberType) {
+   const nativeEnumMemberType =
+     memberType === 'StringTypeAnnotation' ? 'std::string' : 'int32_t';
+   const getMemberValueAppearance = value =>
+-    memberType === 'StringTypeAnnotation' ? `"${value}"` : `${value}`;
++    {
++          return memberType === 'StringTypeAnnotation' ? `"${value}"` : `${value}`;
++      };
+   const fromCases =
+     members
+       .map(
+@@ -458,6 +460,7 @@ function generateEnum(hasteModuleName, origEnumName, members, memberType) {
+ function createEnums(hasteModuleName, enumMap, resolveAlias) {
+   return Object.entries(enumMap)
+     .map(([enumName, enumNode]) => {
++      console.log(enumMap)
+       return generateEnum(
+         hasteModuleName,
+         enumName,
+diff --git a/node_modules/@react-native/codegen/lib/parsers/typescript/parser.js b/node_modules/@react-native/codegen/lib/parsers/typescript/parser.js
+index da4afe3..69bbcb1 100644
+--- a/node_modules/@react-native/codegen/lib/parsers/typescript/parser.js
++++ b/node_modules/@react-native/codegen/lib/parsers/typescript/parser.js
+@@ -174,12 +174,22 @@ class TypeScriptParser {
+       _typeAnnotation$membe === void 0
+         ? void 0
+         : _typeAnnotation$membe.initializer;
+-    const enumMembersType =
++    let enumMembersType =
+       !enumInitializer || enumInitializer.type === 'StringLiteral'
+         ? 'StringTypeAnnotation'
+         : enumInitializer.type === 'NumericLiteral'
+         ? 'NumberTypeAnnotation'
+         : null;
++
++    // Handle case where enum is negative numbers
++
++    if (enumMembersType === null) {
++      const isNegative = enumInitializer.type = 'UnaryExpression' && enumInitializer.operator === '-';
++      if (isNegative) {
++        enumMembersType = 'NumberTypeAnnotation';
++      }
++    }
++
+     if (!enumMembersType) {
+       throw new Error(
+         'Enum values must be either blank, number, or string values.',
+@@ -194,9 +204,10 @@ class TypeScriptParser {
+     const enumInitializerType =
+       enumMembersType === 'StringTypeAnnotation'
+         ? 'StringLiteral'
+-        : enumMembersType === 'NumberTypeAnnotation'
++        : (enumMembersType === 'NumberTypeAnnotation' || enumMembersType === 'UnaryExpression')
+         ? 'NumericLiteral'
+         : null;
++
+     typeAnnotation.members.forEach(member => {
+       var _member$initializer$t, _member$initializer;
+       if (
+@@ -209,6 +220,11 @@ class TypeScriptParser {
+           ? _member$initializer$t
+           : 'StringLiteral') !== enumInitializerType
+       ) {
++        if (member.initializer?.argument.type === 'NumericLiteral') {
++          return;
++        }
++
++        console.log(member.initializer);
+         throw new Error(
+           'Enum values can not be mixed. They all must be either blank, number, or string values.',
+         );
+@@ -218,6 +234,15 @@ class TypeScriptParser {
+   parseEnumMembers(typeAnnotation) {
+     return typeAnnotation.members.map(member => {
+       var _member$initializer$v, _member$initializer2;
++      console.log("PARSE ENUM MEMBERS", member.id.name, member.initializer.type, member.initializer.value);
++      if (member.initializer.operator == '-') {
++        console.log('NEGATIVE NUMBER');
++        console.log(member.id.name, -member.initializer.argument.value);
++        return {
++          name: member.id.name,
++          value: -member.initializer.argument.value
++        }
++      }
+       return {
+         name: member.id.name,
+         value:
