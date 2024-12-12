@@ -16,7 +16,7 @@
         "default": "./lib/commonjs/index.js"
       }
     },
-    "package.json": "./package.json"
+    "./package.json": "./package.json"
   },
   "files": [
     "src",
