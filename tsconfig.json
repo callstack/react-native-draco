@@ -26,5 +26,5 @@
     "target": "ESNext",
     "verbatimModuleSyntax": true
   },
-  "exclude": ["externals"]
+  "exclude": ["externals", "build"]
 }
