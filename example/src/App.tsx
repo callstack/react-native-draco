@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { StyleSheet, View, Text, Button } from 'react-native';
 import {
+  DataType,
   DracoDecoderModule,
   EncodedGeometryType,
   GeometryAttribute,
@@ -32,7 +34,85 @@ const readFile = async (path: string): Promise<Uint8Array> => {
   return new Uint8Array(byteNumbers);
 };
 
+// Smoke test for typed attribute extraction (issue #5). skinned.drc is an
+// edgebreaker-encoded quad with JOINTS stored as Uint8 (attribute 1) and
+// Uint16 (attribute 2), so the decoded attributes use a non-identity mapping.
+// Regenerate with: cpp/tests/run.sh --fixture example/ios/Resources/skinned.drc
+const decodeSkinned = async (): Promise<string> => {
+  const byteArray = await readFile('skinned.drc');
+  const decoderModule = DracoDecoderModule();
+  const buffer = new decoderModule.DecoderBuffer();
+  buffer.Init(byteArray, byteArray.length);
+  const decoder = new decoderModule.Decoder();
+  const mesh = new decoderModule.Mesh();
+  const failures: string[] = [];
+  try {
+    const status = decoder.DecodeBufferToMesh(buffer, mesh);
+    if (status !== Status.OK) {
+      return `FAIL: decode status ${Status[status]}`;
+    }
+    const numPoints = mesh.num_points();
+    const typed = [
+      { index: 1, name: 'JOINTS uint8', ArrayType: Uint8Array },
+      { index: 2, name: 'JOINTS uint16', ArrayType: Uint16Array },
+    ];
+    for (const { index, name, ArrayType } of typed) {
+      const attribute = decoder.GetAttribute(mesh, index);
+      const numValues = numPoints * attribute.num_components();
+      const values = new ArrayType(numValues);
+      const ok = decoder.GetAttributeDataArrayForAllPoints(
+        mesh,
+        attribute,
+        attribute.data_type(),
+        values.byteLength,
+        values
+      );
+      // Reference: the Float32 path, which already handled conversion and mapping.
+      const reference = new Float32Array(numValues);
+      decoder.GetAttributeDataArrayForAllPoints(
+        mesh,
+        attribute,
+        DataType.DT_FLOAT32,
+        reference.byteLength,
+        reference
+      );
+      const same = Array.from(values).every((v, i) => v === reference[i]);
+      if (!ok || !same) {
+        failures.push(`${name} ok=${ok} values=[${Array.from(values)}]`);
+      }
+    }
+    // An invalid handle must throw a JS error instead of crashing the app.
+    let threw = false;
+    try {
+      decoder.GetAttributeDataArrayForAllPoints(
+        {} as any,
+        decoder.GetAttribute(mesh, 1),
+        DataType.DT_UINT8,
+        numPoints * 4,
+        new Uint8Array(numPoints * 4)
+      );
+    } catch {
+      threw = true;
+    }
+    if (!threw) failures.push('invalid handle did not throw');
+  } finally {
+    decoderModule.destroy(mesh);
+    decoderModule.destroy(decoder);
+    decoderModule.destroy(buffer);
+  }
+  return failures.length ? `FAIL: ${failures.join('; ')}` : 'PASS';
+};
+
 export default function App() {
+  const [skinnedResult, setSkinnedResult] = useState('not run');
+  const runSkinned = async () => {
+    try {
+      setSkinnedResult(await decodeSkinned());
+    } catch (e) {
+      setSkinnedResult(`FAIL: ${String(e)}`);
+    }
+  };
+
   const decode = async () => {
     const byteArray = await readFile('bunny.drc');
     console.log('Draco file loaded!');
@@ -163,6 +243,8 @@ export default function App() {
     <View style={styles.container}>
       <Text style={{ fontSize: 40 }}>Draco Example</Text>
       <Button title="Decode" onPress={decode} />
+      <Button title="Decode skinned" onPress={runSkinned} />
+      <Text testID="skinned-result">Skinned: {skinnedResult}</Text>
     </View>
   );
 }

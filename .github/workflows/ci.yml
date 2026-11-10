@@ -38,6 +38,27 @@ jobs:
       - name: Run unit tests
         run: yarn test --maxWorkers=2 --coverage
 
+  test-cpp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Get Draco submodule commit
+        id: draco
+        run: echo "sha=$(git rev-parse HEAD:externals/draco)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache host Draco build
+        uses: actions/cache@v3
+        with:
+          path: build/draco-host
+          key: ${{ runner.os }}-draco-host-${{ steps.draco.outputs.sha }}
+
+      - name: Run C++ tests
+        run: bash cpp/tests/run.sh
+
   build-library:
     runs-on: ubuntu-latest
     steps:

@@ -1,5 +1,10 @@
-#include "draco/core/decoder_buffer.h"
 #pragma once
+
+#include <cstring>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 #include <jsi/jsi.h>
 
@@ -9,6 +14,7 @@
 #include "draco/compression/decode.h"
 #include "draco/core/decoder_buffer.h"
 #include "draco/mesh/mesh.h"
+#include "draco-state.h"
 
 #define HOSTFN(name, size, capture) \
 jsi::Function::createFromHostFunction(rt, jsi::PropNameID::forAscii(rt, name), size, \
@@ -43,57 +49,101 @@ bool GetTrianglesArray(const draco::Mesh &m, const int out_size,
   return true;
 }
 
+namespace detail {
 template <class T>
-static bool GetAttributeDataArrayForAllPointsHelper(const draco::PointCloud &pc,
-                                                    const draco::PointAttribute &pa,
-                                                    const draco::DataType type,
-                                                    int out_size,
-                                                    void *out_values) {
+constexpr draco::DataType dracoDataTypeOf() {
+  if constexpr (std::is_same_v<T, int8_t>) return draco::DT_INT8;
+  else if constexpr (std::is_same_v<T, uint8_t>) return draco::DT_UINT8;
+  else if constexpr (std::is_same_v<T, int16_t>) return draco::DT_INT16;
+  else if constexpr (std::is_same_v<T, uint16_t>) return draco::DT_UINT16;
+  else if constexpr (std::is_same_v<T, int32_t>) return draco::DT_INT32;
+  else if constexpr (std::is_same_v<T, uint32_t>) return draco::DT_UINT32;
+  else if constexpr (std::is_same_v<T, float>) return draco::DT_FLOAT32;
+  else static_assert(sizeof(T) == 0, "Unsupported attribute element type");
+}
+}  // namespace detail
+
+// Mirrors Draco's Emscripten wrapper (GetAttributeDataArrayForAllPoints).
+template <class T>
+bool GetAttributeDataArrayForAllPointsHelper(const draco::PointCloud &pc,
+                                             const draco::PointAttribute &pa,
+                                             int out_size,
+                                             void *out_values) {
   const int components = pa.num_components();
-  const int num_points = pc.num_points();
-  const size_t data_size = num_points * components * sizeof(T);
-  if (data_size != out_size) {
+  const size_t data_size = static_cast<size_t>(pc.num_points()) *
+                           static_cast<size_t>(components) * sizeof(T);
+  if (out_size < 0 || data_size != static_cast<size_t>(out_size)) {
     return false;
   }
-  const bool requested_type_matches = pa.data_type() == type;
+  const bool requested_type_matches = pa.data_type() == detail::dracoDataTypeOf<T>();
   if (requested_type_matches && pa.is_mapping_identity()) {
-    // Copy values directly to the output vector.
-    const uint8_t *ptr = pa.GetAddress(draco::AttributeValueIndex(0));
-    ::memcpy(out_values, ptr, data_size);
+    if (data_size > 0) {
+      const uint8_t *ptr = pa.GetAddress(draco::AttributeValueIndex(0));
+      ::memcpy(out_values, ptr, data_size);
+    }
     return true;
   }
-  
-  return false;
-};
 
-bool GetAttributeFloatArrayForAllPoints(const draco::PointCloud &pc,
-                                        const draco::PointAttribute &pa,
-                                        int out_size,
-                                        void *out_values) {
-  const int components = pa.num_components();
-  const int num_points = pc.num_points();
-  const int data_size = num_points * components * sizeof(float);
-  if (data_size != out_size) {
-    return false;
-  }
-  const bool requested_type_is_float = pa.data_type() == draco::DT_FLOAT32;
-  std::vector<float> values(components, -2.f);
-  int entry_id = 0;
-  float *const floats = reinterpret_cast<float *>(out_values);
-  
-  for (draco::PointIndex i(0); i < num_points; ++i) {
+  std::vector<T> values(components);
+  size_t entry_id = 0;
+  T *const out = reinterpret_cast<T *>(out_values);
+  for (draco::PointIndex i(0); i < pc.num_points(); ++i) {
     const draco::AttributeValueIndex val_index = pa.mapped_index(i);
-    if (requested_type_is_float) {
-      pa.GetValue(val_index, &values[0]);
-    } else {
-      if (!pa.ConvertValue<float>(val_index, &values[0])) {
-        return false;
-      }
+    if (requested_type_matches) {
+      pa.GetValue(val_index, values.data());
+    } else if (!pa.ConvertValue<T>(val_index, values.data())) {
+      return false;
     }
     for (int j = 0; j < components; ++j) {
-      floats[entry_id++] = values[j];
+      out[entry_id++] = values[j];
     }
   }
   return true;
+}
+
+inline bool GetAttributeDataArrayForAllPointsByType(const draco::PointCloud &pc,
+                                                    const draco::PointAttribute &pa,
+                                                    draco::DataType type,
+                                                    int out_size,
+                                                    void *out_values) {
+  switch (type) {
+    case draco::DT_INT8:
+      return GetAttributeDataArrayForAllPointsHelper<int8_t>(pc, pa, out_size, out_values);
+    case draco::DT_UINT8:
+      return GetAttributeDataArrayForAllPointsHelper<uint8_t>(pc, pa, out_size, out_values);
+    case draco::DT_INT16:
+      return GetAttributeDataArrayForAllPointsHelper<int16_t>(pc, pa, out_size, out_values);
+    case draco::DT_UINT16:
+      return GetAttributeDataArrayForAllPointsHelper<uint16_t>(pc, pa, out_size, out_values);
+    case draco::DT_INT32:
+      return GetAttributeDataArrayForAllPointsHelper<int32_t>(pc, pa, out_size, out_values);
+    case draco::DT_UINT32:
+      return GetAttributeDataArrayForAllPointsHelper<uint32_t>(pc, pa, out_size, out_values);
+    case draco::DT_FLOAT32:
+      return GetAttributeDataArrayForAllPointsHelper<float>(pc, pa, out_size, out_values);
+    default:
+      return false;
+  }
+}
+
+// Throws a JS error when the handle has no native state of type T.
+template <class T>
+std::shared_ptr<T> requireDracoObject(jsi::Runtime &rt, jsi::Object &obj, const char *what) {
+  auto ptr = tryGetDracoObject<T>(rt, obj);
+  if (ptr == nullptr) {
+    throw jsi::JSError(rt, std::string("Invalid handle: expected ") + what);
+  }
+  return ptr;
+}
+
+// Accepts a DracoPointCloud or DracoMesh handle; the result keeps the owner alive.
+inline std::shared_ptr<draco::PointCloud> requirePointCloud(jsi::Runtime &rt, jsi::Object &obj) {
+  if (auto pc = tryGetDracoObject<DracoPointCloud>(rt, obj)) {
+    return std::shared_ptr<draco::PointCloud>(pc, &pc->pointCloud_);
+  }
+  if (auto mesh = tryGetDracoObject<DracoMesh>(rt, obj)) {
+    return std::shared_ptr<draco::PointCloud>(mesh, &mesh->mesh_);
+  }
+  throw jsi::JSError(rt, "Invalid handle: expected point cloud or mesh");
 }
 }
